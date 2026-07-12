@@ -13,4 +13,8 @@ include "envcommon" {
 inputs = {
   github_repos = ["rackctl/web", "rackctl/docs"]
   site_buckets = ["rackctl.com-site", "docs.rackctl.ai-site"]
+
+  # The account's GitHub Actions OIDC provider is shared (billoquy/nanohype
+  # already created the account-global singleton) — consume it, don't recreate.
+  manage_oidc_provider = false
 }
