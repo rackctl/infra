@@ -19,3 +19,7 @@ jobs:
         run: |
           tofu -chdir=iac/components/aws/site init -backend=false -input=false
           tofu -chdir=iac/components/aws/site validate
+      - name: validate deploy component
+        run: |
+          tofu -chdir=iac/components/aws/deploy init -backend=false -input=false
+          tofu -chdir=iac/components/aws/deploy validate
