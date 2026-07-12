@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.11.0"
+      - name: fmt
+        run: tofu fmt -check -recursive iac
+      - name: validate site component
+        run: |
+          tofu -chdir=iac/components/aws/site init -backend=false -input=false
+          tofu -chdir=iac/components/aws/site validate
