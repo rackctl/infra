@@ -1,5 +1,16 @@
+locals {
+  # The zone to write records into — the apex zone, which may be a parent of the
+  # served subdomain (docs.rackctl.ai lives in the rackctl.ai zone).
+  zone_name = var.hosted_zone != "" ? var.hosted_zone : var.domain
+
+  # Static multi-page sites 404 honestly to /404.html; SPAs fall back to the app
+  # shell (index.html, 200) so client-side routing can take over.
+  error_page = var.rewrite_dir_index ? "/404.html" : "/index.html"
+  error_code = var.rewrite_dir_index ? 404 : 200
+}
+
 data "aws_route53_zone" "this" {
-  name = var.domain
+  name = local.zone_name
 }
 
 # ── Origin bucket ───────────────────────────────────────────────────────────
@@ -68,6 +79,28 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
+# Directory-index rewrite for statically-generated multi-page sites: S3 + OAC has
+# no index-document resolution, so map `/foo/` and `/foo` to `/foo/index.html`.
+resource "aws_cloudfront_function" "dir_index" {
+  count   = var.rewrite_dir_index ? 1 : 0
+  name    = "${replace(var.domain, ".", "-")}-dir-index"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrite directory URIs to /index.html for ${var.domain}"
+  publish = true
+  code    = <<-JS
+    function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+      if (uri.endsWith('/')) {
+        request.uri = uri + 'index.html';
+      } else if (!uri.split('/').pop().includes('.')) {
+        request.uri = uri + '/index.html';
+      }
+      return request;
+    }
+  JS
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -91,21 +124,30 @@ resource "aws_cloudfront_distribution" "this" {
 
     # AWS managed CachingOptimized policy.
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+
+    dynamic "function_association" {
+      for_each = var.rewrite_dir_index ? [1] : []
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.dir_index[0].arn
+      }
+    }
   }
 
-  # SPA fallback: S3 + OAC returns 403 for a missing key, so serve index.html.
-  # The /install object exists, so it is served directly (not shadowed by this).
+  # S3 + OAC returns 403 for a missing key. A static site serves its /404.html
+  # (404); a SPA serves the app shell (index.html, 200) so client routing runs.
+  # The /install object exists on rackctl.com, so it is served directly.
   custom_error_response {
     error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
+    response_code         = local.error_code
+    response_page_path    = local.error_page
     error_caching_min_ttl = 10
   }
 
   custom_error_response {
     error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
+    response_code         = local.error_code
+    response_page_path    = local.error_page
     error_caching_min_ttl = 10
   }
 
