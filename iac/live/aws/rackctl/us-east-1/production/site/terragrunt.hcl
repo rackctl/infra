@@ -15,10 +15,11 @@ inputs = {
   # (rackctl-site-deploy) from it.
   name_prefix = "rackctl-"
 
-  # gotcha #2: the origin bucket name is immutable and domain-agnostic — keep the
-  # live one (rackctl.com-site) or the plan destroys + recreates the origin. The
-  # bucket is reused as-is across the rackctl.com -> rackctl.sh cutover.
-  site_bucket_name = "rackctl.com-site"
+  # gotcha #2: the origin bucket name is immutable, so renaming it to the estate
+  # convention (rackctl-site) is a destroy + recreate of the origin bucket and its
+  # policy/OAC/PAB/encryption. The apex distribution is updated in place to point at
+  # the new origin; content is resynced after the apply.
+  site_bucket_name = "rackctl-site"
 
   # gotcha #3: the rackctl.sh zone (Z0543652NWOT6RRWNZ2D) is delegated and owned
   # elsewhere; the module reads it via a data source (zone_name resolves to the
