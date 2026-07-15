@@ -8,18 +8,21 @@ include "envcommon" {
 }
 
 inputs = {
-  domain = "rackctl.com"
+  domain = "rackctl.sh"
 
   # gotcha #1: the root passes region + environment but NOT name_prefix; the module
   # derives the www-redirect bucket (rackctl-www-redirect) and deploy role
   # (rackctl-site-deploy) from it.
   name_prefix = "rackctl-"
 
-  # gotcha #2: the origin bucket name is immutable — keep the live one or the plan
-  # destroys the origin.
+  # gotcha #2: the origin bucket name is immutable and domain-agnostic — keep the
+  # live one (rackctl.com-site) or the plan destroys + recreates the origin. The
+  # bucket is reused as-is across the rackctl.com -> rackctl.sh cutover.
   site_bucket_name = "rackctl.com-site"
 
-  # gotcha #3: the zone is a data source in the retired component, managed elsewhere.
+  # gotcha #3: the rackctl.sh zone (Z0543652NWOT6RRWNZ2D) is delegated and owned
+  # elsewhere; the module reads it via a data source (zone_name resolves to the
+  # domain, rackctl.sh) rather than creating it.
   create_zone = false
 
   # rackctl owns rackctl-site-deploy in its standalone deploy component, so the module
@@ -34,39 +37,17 @@ inputs = {
   content_security_policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
-# Migration state ops, generated into the working dir. State-only, no infra changes:
-#   - the distribution keeps its identity (rename .this -> .apex, an update in place)
-#   - the zone data source becomes counted ([0])
-#   - the apex A/AAAA aliases move onto apex["A"]/apex["AAAA"]; the www aliases are
-#     NOT moved (they are replaced by the new www distribution's records)
-# The old component managed bucket versioning; the module does not. Drop that resource
-# from state WITHOUT touching the bucket — versioning stays as-is on rackctl.com-site.
-generate "moved" {
-  path      = "moved.tf"
-  if_exists = "overwrite"
-  contents  = <<-EOT
-    moved {
-      from = aws_cloudfront_distribution.this
-      to   = aws_cloudfront_distribution.apex
-    }
-    moved {
-      from = data.aws_route53_zone.this
-      to   = data.aws_route53_zone.this[0]
-    }
-    moved {
-      from = aws_route53_record.alias_a["rackctl.com"]
-      to   = aws_route53_record.apex["A"]
-    }
-    moved {
-      from = aws_route53_record.alias_aaaa["rackctl.com"]
-      to   = aws_route53_record.apex["AAAA"]
-    }
-
-    removed {
-      from = aws_s3_bucket_versioning.site
-      lifecycle {
-        destroy = false
-      }
-    }
-  EOT
-}
+# No leaf-level moved block is needed for the site-v1.1.0 cutover.
+#
+# The live state is already on the module's current addresses (aws_cloudfront_
+# distribution.apex, aws_route53_record.apex["A"|"AAAA"], data.aws_route53_zone.
+# this[0], cert_validation keyed by domain). The only address migration this ref
+# introduces — the www-redirect resources gaining `count = var.enable_www`, moving
+# from the un-indexed address to [0] — is carried by moved{} blocks INSIDE the
+# module itself, so the leaf must not duplicate them.
+#
+# The rackctl.com -> rackctl.sh domain change legitimately REPLACES the ACM cert
+# (new domain + www SAN), its DNS validation records, and the apex/www alias
+# records (their name + zone_id change from the rackctl.com zone to the rackctl.sh
+# zone). Those are intentional destroy+create on a greenfield zone, not something a
+# moved block should mask — so there is nothing to generate here.
