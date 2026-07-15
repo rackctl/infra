@@ -30,10 +30,11 @@ inputs = {
   # name_prefix scopes the module's derived names (e.g. the OAC) for docs.
   name_prefix = "rackctl-docs-"
 
-  # The origin bucket name is immutable and domain-agnostic — reuse the existing
-  # docs bucket (docs.rackctl.ai-site) across the docs.rackctl.ai -> docs.rackctl.sh
-  # cutover; renaming it would force-replace the origin.
-  site_bucket_name = "docs.rackctl.ai-site"
+  # The origin bucket name is immutable and domain-agnostic. Renamed to the estate
+  # naming convention (rackctl-docs-site); because bucket names are immutable this
+  # force-replaces the origin bucket (destroy docs.rackctl.ai-site + create
+  # rackctl-docs-site) and repoints the apex distribution's origin in place.
+  site_bucket_name = "rackctl-docs-site"
 
   # The publish role for docs is owned by the standalone deploy component
   # (github_repos includes rackctl/docs), so this module must not create a
