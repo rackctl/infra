@@ -24,6 +24,10 @@ inputs = {
   # gotcha #3: the rackctl.sh zone (Z0543652NWOT6RRWNZ2D) is delegated and owned
   # elsewhere; the module reads it via a data source (zone_name resolves to the
   # domain, rackctl.sh) rather than creating it.
+  # GSC domain-property apex TXT — a Google Domain property verifies rackctl.sh and
+  # all its subdomains, so this single apex record also verifies docs.rackctl.sh.
+  google_site_verification = "google-site-verification=BGr02sfo4wKoSkvnryqlkqfpH9-8o4JvVuxeMvgnUoI"
+
   create_zone = false
 
   # rackctl owns rackctl-site-deploy in its standalone deploy component, so the module
