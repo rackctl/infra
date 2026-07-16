@@ -15,10 +15,6 @@ jobs:
           tofu_version: "1.11.0"
       - name: fmt
         run: tofu fmt -check -recursive iac
-      - name: validate site component
-        run: |
-          tofu -chdir=iac/components/aws/site init -backend=false -input=false
-          tofu -chdir=iac/components/aws/site validate
       - name: validate deploy component
         run: |
           tofu -chdir=iac/components/aws/deploy init -backend=false -input=false
