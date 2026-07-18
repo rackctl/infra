@@ -13,6 +13,7 @@ include "envcommon" {
 inputs = {
   github_repos = ["rackctl/web", "rackctl/docs"]
   site_buckets = ["rackctl-site", "rackctl-docs-site"]
+  role_name    = "rackctl-site-deploy"
 
   # The account's GitHub Actions OIDC provider is shared (billoquy/nanohype
   # already created the account-global singleton) — consume it, don't recreate.
